@@ -21,7 +21,10 @@ colnames(air) <- c("Airline", "LoF", "SoP", "DFT", "population",
                    "investments", "adjassets")
 rownames(air) <- air$Airline
 air <- air[,-1]
+tmlf<-subset(air,select = TMlf)
+air <- subset(air,select = -TMlf)
 air <- log(air)
+air['TMlf']<-subset(tmlf,select = TMlf)
 ```
 
 # Introduction
