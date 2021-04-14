@@ -21,7 +21,10 @@ colnames(air) <- c("Airline", "LoF", "SoP", "DFT", "population",
                    "investments", "adjassets")
 rownames(air) <- air$Airline
 air <- air[,-1]
+tmlf <- subset(air, select = TMlf)
+air <- subset(air, select = -TMlf)
 air <- log(air)
+air['TMlf'] <- subset(tmlf, select = TMlf)
 ```
 
 # Introduction
@@ -76,19 +79,15 @@ fit.AICbackward <- stepAIC(fit, trace = FALSE)
 m <- lm(TOC ~ 1, air)
 fit.AICforward <- stepAIC(m, direction = "forward", scope = list(lower = m, upper = fit))
 fit.tocred <- lm(TOC ~ LoF + TMlf + capacity, data = air)
-```
-
-```{r}
-par(mfrow = c(2,2))
-# plot(fit.AICforward)
+fit.yetanother <- lm(TOC ~ TMlf + capacity + DFT, air)
 ```
 
 ```{r, echo = FALSE}
 # plot(fit6)
-par(mfrow = c(2,2))
 fit.AICforward.sr <- stdres(fit.AICforward)
 # plot(fit.AICforward.sr ~ air$TMlf)
 # plot(fit.AICforward.sr ~ air$DFT)
+par( mfrow = c(2,2), pch = '.' )
 plot(fit.AICforward)
 # air <- air[!(row.names(air) %in% "Wiggins"),]
 fit.rev2 <- lm(RTpAM ~ . - TOC - totassets, data = air)
