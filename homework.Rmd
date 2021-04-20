@@ -10,85 +10,131 @@ header-includes:
     - \usepackage{fancyhdr}
     - \pagestyle{fancy}
     - \fancyhead[L]{\theauthor}
+    - \fancyhead[R]{}
+    - \usepackage{amsmath}
 ---
 
 ```{r, echo = FALSE}
 set.seed(111222)
 library("MASS")
+library("knitr")
+library("papeR")
+library("leaps")
 air <- read.delim("airline_costs.dat", header = FALSE, sep="")
 colnames(air) <- c("Airline", "LoF", "SoP", "DFT", "population",
                    "TOC", "RTpAM", "TMlf", "capacity", "totassets",
                    "investments", "adjassets")
 rownames(air) <- air$Airline
 air <- air[,-1]
-tmlf <- subset(air, select = TMlf)
-air <- subset(air, select = -TMlf)
-air <- log(air)
-air['TMlf'] <- subset(tmlf, select = TMlf)
 ```
 
 # Introduction
 
-The costs of air transport include several parameters but they are not of the same importance. In this report, we use regression analysis to get the variables that have the most influence on the airline costs. Our dataset contains the following variables: Airline name, length of flight (in miles), speed of plane (miles per hour), daily flight time per plane (in hours), population served (1000s), total operating cost (in cents per revenue ton-mile), revenue tons per aircraft mile, ton-mile load factor (proportion), available capacity (Tons per mile), total assets  (\$100,000s), investments and special funds  (\$100,000s), adjusted assets  (\$100,000s).
-
-We will first have a look at the data in more depth. For this, we will plot every single one of the variables in function of the total operating cost since it is the variable that we want to explain.
-
-```{r, echo = FALSE, fig.show = "hold"}
-#air <- log(air[,-1])
-# par( lty = "solid", mfcol = c(1,2) )
-# plot(TOC ~ LoF, data = air, log = "y")
-# plot(TOC ~ SoP, data = air, log = "y")
-# plot(TOC ~ DFT, data = air, log = "y")
-# plot(TOC ~ population, data = air, log = "y")
-# plot(TOC ~ RTpAM, data = air, log = "y")
-# plot(TOC ~ TMlf, data = air, log = "y")
-# plot(TOC ~ capacity, data = air, log = "y")
-# plot(TOC ~ totassets, data = air, log = "y")
-# plot(TOC ~ investments, data = air, log = "y")
-# plot(TOC ~ adjassets, data = air, log = "y")
-pairs(air)
-```
-
-We apply the logarithm to the total operation cost to obtain the above graphs.
-
-We can observe some linearity in the plots of the capacity, length of flight and ton-mile load factor, which means that they have a significant correlation with the cost.
+The costs of air transport include several parameters but they are not of the same importance.
+In this report, we use regression analysis to get the variables that have the most influence on the airline costs.
+Our dataset contains the following variables: Airline name, length of flight `LoF` (in miles), speed of plane `SoP` (miles per hour), daily flight time per plane `DFT` (in hours), population served `population` (1000s), total operating cost `TOC` (in cents per revenue ton-mile), ton-mile load factor `TMlf` (proportion), available capacity `capacity` (Tons per mile), adjusted assets `adjassets` (\$100,000s).
 
 # Exploratory phase
 
-For each airline we have the following variables:
-
-* Airline, the name of the airline.
-* Total operating costs (`TOC`), normalized per revenue ton-mile (in cents).
-* Length of Flight (`LoF`), in miles.
-* Speed of Plane (`SoP`), in miles per hour.
-* Daily flight time per plane (`DFT`), in hours.
-* Population served(`population`).
-* Revenue tons per aircraft mile(`RTpAM`), a measure of how much revenue a company earns by transporting one ton of cargo for one mile.
-* Ton-Mile load factor (`TMlf`), the proportion of used space ..?
-* Available capacity (`capacity`), measured in ton-miles
-
+When plotting the explanatories against the response (Total Operating Costs) we find that almost every plot has the same $1/x$ shape.
+The following two plots are representative of the general shape each other plot has.
 
 ```{r, echo = FALSE}
-fit <- lm(TOC ~ capacity + LoF + TMlf + DFT + population + SoP + adjassets, data = air)
-fit.rev <- lm(RTpAM ~ . - TOC, data = air)
-# fit3 <- lm(TOC ~ capacity + LoF + TMlf + DFT + population + SoP + totassets + investments + adjassets -1, data = air)
-# fit2 <- lm(TOC ~ capacity + LoF + TMlf, data = air)
-# fit4 <- lm(TOC ~ capacity + TMlf + SoP, data = air)
-# fit5 <- lm(TOC ~ 0, data = air)
-fit.AICbackward <- stepAIC(fit, trace = FALSE)
-m <- lm(TOC ~ 1, air)
-fit.AICforward <- stepAIC(m, direction = "forward", scope = list(lower = m, upper = fit))
-fit.tocred <- lm(TOC ~ LoF + TMlf + capacity, data = air)
-fit.yetanother <- lm(TOC ~ TMlf + capacity + DFT, air)
+
+par(mfrow = c(1,2), pty = "square", pch = 18)
+plot(TOC ~ LoF, data = air, ylab = "TOC", xlab = "Length of Flight")
+plot(TOC ~ capacity, data = air, ylab = "TOC", xlab ="Capacity")
 ```
 
+Note that in all of these plots the airline that finds itself alone at the top left of the graph is Wiggins. When we fit the model as is with the same explanatories used in the 1954 study, we find that none of the explanatories are particularly relevant and that Wiggins is an outlier as well as an influential point. Therefore, it may be interesting to exclude Wiggins and try to fit the same model. However, this model is still only moderately satisfying because although it has a good fit for some variables, other airlines become leverage points and the parabola-shaped scale-location plot causes us to doubt the validity of the homoskedasticity assumption.
+
+For those reasons, given the $1/x$ shape of the plots, we suppose that the true model has the following shape:
+$$\mathbb{E}(y_i) = \prod_j \beta_j x^{-k_j}.$$
+
+Then, to make it into a linear model we take logs of all variables except for the ton-mile load factor, which is a ratio.
+
+We now fit this model with all variables.
+
 ```{r, echo = FALSE}
-# plot(fit6)
-fit.AICforward.sr <- stdres(fit.AICforward)
-# plot(fit.AICforward.sr ~ air$TMlf)
-# plot(fit.AICforward.sr ~ air$DFT)
-par( mfrow = c(2,2), pch = '.' )
-plot(fit.AICforward)
-# air <- air[!(row.names(air) %in% "Wiggins"),]
+tmlf <- subset(air, select = TMlf)
+air <- subset(air, select = -TMlf)
+air <- log(air)
+air['TMlf'] <- subset(tmlf, select = TMlf)
+fit <- lm(TOC ~ capacity + LoF + TMlf + DFT + population + SoP + adjassets, data = air)
+fit.rev <- lm(RTpAM ~ . - TOC, data = air)
+fit.AICbackward <- stepAIC(fit, trace = FALSE)
+m <- lm(TOC ~ 1, air)
+fit.AICforward <- stepAIC(trace = FALSE, m, direction = "forward", scope = list(lower = m, upper = fit))
+fit.tocred <- lm(TOC ~ LoF + TMlf + capacity, data = air)
+fit.yetanother <- lm(TOC ~ TMlf + capacity + DFT, air)
 fit.rev2 <- lm(RTpAM ~ . - TOC - totassets, data = air)
+res <- stdres(fit.AICforward)
+```
+
+```{r, echo = FALSE, results = "asis"}
+kable(prettify( summary(fit), digits = 3, scientific = TRUE ))
+```
+
+We find that the most relevant variables are the same as the ones found in the 1954 study with the addition of `LoF`.
+
+# Final model and assessment
+
+We decide to build our model by using a step-forward method with AIC, which yields the following:
+
+```{r, echo = FALSE, results = "asis"}
+kable(prettify(summary(fit.AICforward), digits = 3, scientific = TRUE), caption = "bla bla")
+```
+
+We now proceed to assess the assumptions of our model.
+
+```{r model-assess, echo = FALSE, fig.align = "center", out.height = "100%"}
+# par(pty = "square", pch = 18, mfrow = c(1,2))
+# plot(fit.AICforward)
+```
+
+## Linearity
+
+
+Consider the four following plots of the standardized residuals against each of the explanatories.
+In those, it would be desirable to find no particular structure. That is the case here.
+Otherwise it would have suggested that we would have forgotten to add an explanatory, or a transformation of an explanatory.
+For instance, if the following plot was shaped like an $x^3$ curve we would have wanted to add to our model the cube of some explanatory variable.
+
+```{r, echo = FALSE}
+par(mfrow = c(1,2), pch = 18, pty = "square")
+plot(res ~ air$TMlf)
+plot(res ~ air$capacity)
+plot(res ~ air$DFT)
+plot(res ~ air$adjassets)
+```
+
+## Normality
+
+Consider the following image in which we plot the standardized residuals $r_i = e_i/ s \sqrt{1-h_{ii}}$ against theoretical normal distribution, we would like to see them follow straight line. This is the case here and shows that the normality assumption is verified.
+
+```{r, echo = FALSE, fig.align = "center", out.height = "40%"}
+par( pch = 18, pty = "square")
+plot(fit.AICforward, which = 2)
+```
+
+## Homoskedasticity
+
+Consider the following plot of the standardized residuals against the fitted values.
+We would like once again to see no particular structure formed by the points.
+This is the case here so the homoskedasticity assumption is verified.
+```{r, echo = FALSE, fig.align = "center", out.height = "40%"}
+par(pch = 18, pty = "square")
+plot(fit.AICforward, which = 3)
+```
+
+## Presence of leverage points
+
+Consider the following plot of the Cook distance of each airline.
+Following a common rule of thumb, we drew a line at $h = 8/(n - 2p)$ (where $n = 31$ is the number of observed airlines and $p = 4$ is the number of parameters in the model), to indicate which airlines have particularly strong influence on the overall fit of the model.
+We see that Central and Eastern are leverage points. There is not much we can do about it ??
+```{r, echo = FALSE, fig.align = "center", out.height = "40%"}
+par(pch = 18, pty = "square")
+plot(cooks.distance(fit.AICforward))
+abline(h = 8/(31 - 2*4), lty = 2, col = "red")
+text(1:31, cooks.distance(fit.AICforward), labels = rownames(air), cex = 0.7, pos = 2)
 ```
