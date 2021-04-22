@@ -1,7 +1,7 @@
 ---
-title: "homework"
+title: "A regression analysis of airline operating costs"
 author: "Omid Karimi, Evan Aguzzi, Luca Bracone, Blerton Rashiti"
-date: "2021-04-08 <-- doit changer"
+date: "2021-04-22"
 output: pdf_document
 geometry: margin = 2.5cm
 fontsize: 12pt
@@ -42,8 +42,8 @@ The following two plots are representative of the general shape each other plot 
 ```{r, echo = FALSE}
 
 par(mfrow = c(1,2), pty = "square", pch = 18)
-plot(TOC ~ LoF, data = air, ylab = "TOC", xlab = "Length of Flight")
-plot(TOC ~ capacity, data = air, ylab = "TOC", xlab ="Capacity")
+plot(TOC ~ LoF, data = air, ylab = "Total Operating Costs", xlab = "Length of Flight")
+plot(TOC ~ capacity, data = air, ylab = "Total Operating Costs", xlab ="Capacity")
 ```
 
 Note that in all of these plots the airline that finds itself alone at the top left of the graph is Wiggins. When we fit the model as is with the same explanatories used in the 1954 study, we find that none of the explanatories are particularly relevant and that Wiggins is an outlier as well as an influential point. Therefore, it may be interesting to exclude Wiggins and try to fit the same model. However, this model is still only moderately satisfying because although it has a good fit for some variables, other airlines become leverage points and the parabola-shaped scale-location plot causes us to doubt the validity of the homoskedasticity assumption.
@@ -82,15 +82,10 @@ We find that the most relevant variables are the same as the ones found in the 1
 We decide to build our model by using a step-forward method with AIC, which yields the following:
 
 ```{r, echo = FALSE, results = "asis"}
-kable(prettify(summary(fit.AICforward), digits = 3, scientific = TRUE), caption = "bla bla")
+kable(prettify(summary(fit.AICforward), digits = 3, scientific = TRUE), caption = "A summary of the final chosen model")
 ```
 
 We now proceed to assess the assumptions of our model.
-
-```{r model-assess, echo = FALSE, fig.align = "center", out.height = "100%"}
-# par(pty = "square", pch = 18, mfrow = c(1,2))
-# plot(fit.AICforward)
-```
 
 ## Linearity
 
@@ -98,14 +93,14 @@ We now proceed to assess the assumptions of our model.
 Consider the four following plots of the standardized residuals against each of the explanatories.
 In those, it would be desirable to find no particular structure. That is the case here.
 Otherwise it would have suggested that we would have forgotten to add an explanatory, or a transformation of an explanatory.
-For instance, if the following plot was shaped like an $x^3$ curve we would have wanted to add to our model the cube of some explanatory variable.
+For instance, if one of the following plots was shaped like an $x^3$ curve we would have wanted to add to our model the cube of some explanatory variable.
 
-```{r, echo = FALSE}
-par(mfrow = c(1,2), pch = 18, pty = "square")
-plot(res ~ air$TMlf)
-plot(res ~ air$capacity)
-plot(res ~ air$DFT)
-plot(res ~ air$adjassets)
+```{r, echo = FALSE, fig.align = "center", fig.height = 7}
+par(mfrow = c(2,2), pch = 18, pty = "square")
+plot(res ~ air$TMlf, ylab = "Standardized residuals", xlab = "Ton-mile load factor")
+plot(res ~ air$capacity, ylab = "Standardized residuals", xlab = "Capacity")
+plot(res ~ air$DFT, ylab = "Standardized residuals", xlab = "Daily flight time")
+plot(res ~ air$adjassets, ylab = "Standardized residuals", xlab = "Adjusted assets")
 ```
 
 ## Normality
@@ -122,19 +117,35 @@ plot(fit.AICforward, which = 2)
 Consider the following plot of the standardized residuals against the fitted values.
 We would like once again to see no particular structure formed by the points.
 This is the case here so the homoskedasticity assumption is verified.
+Also, we see that Northwest and Central lie farther than two standard deviations from the mean.
+This may prompts furhter study as to what causes their opearating costs to be higher than expected.
 ```{r, echo = FALSE, fig.align = "center", out.height = "40%"}
 par(pch = 18, pty = "square")
-plot(fit.AICforward, which = 3)
+plot(fit.AICforward$fitted.values, res, ylab = "Standardized residuals", xlab = "Fitted values")
+text(fit.AICforward$fitted.values, res, labels = ifelse(res > 2.0, rownames(air), NA), cex = 0.7, pos = 4)
+abline(h = c(-2,2), lty = 2, col = "red")
 ```
 
 ## Presence of leverage points
 
 Consider the following plot of the Cook distance of each airline.
-Following a common rule of thumb, we drew a line at $h = 8/(n - 2p)$ (where $n = 31$ is the number of observed airlines and $p = 4$ is the number of parameters in the model), to indicate which airlines have particularly strong influence on the overall fit of the model.
-We see that Central and Eastern are leverage points. There is not much we can do about it ??
+Following a common rule of thumb, we drew a line at $h = 8/(n - 2p)$, (where $n = 31$ is the number of observed airlines and $p = 4$ is the number of parameters in the model), to indicate which airlines have particularly strong influence on the overall fit of the model.
+We see that Central and Eastern are leverage points. This means that they stand out by having unusual values among the explanatory variables. As such they tend to skew the regression. We see that Central is both an outlier and a leverage point so it may be worthwhile to fit the same model again without that variable to see if there are significant changes.
 ```{r, echo = FALSE, fig.align = "center", out.height = "40%"}
-par(pch = 18, pty = "square")
-plot(cooks.distance(fit.AICforward))
+par(pch = 18)
+plot(cooks.distance(fit.AICforward), xlab = "", xaxt = "n", ylab = "Cook's distance")
 abline(h = 8/(31 - 2*4), lty = 2, col = "red")
-text(1:31, cooks.distance(fit.AICforward), labels = rownames(air), cex = 0.7, pos = 2)
+cook <- cooks.distance(fit.AICforward)
+text(1:31, cook, labels = ifelse(cook > 0.1, rownames(air), NA), cex = 0.7, pos = c(2,2,3,2,2))
 ```
+
+# Conclusion
+
+As we can see, the four most influential parameters are capacity, ton-mile load factor, daily flight time and adjusted assets.
+The capacity, ton-mile load factor, and daily flight time are known to be significant variables in airline costs.
+So we can see that our results mostly agree with the conclusion of the 1954 paper.
+The presence of adjusted assets as a significant variable comes off as a surprise, and warrants further investigation by economy experts.
+
+In practice, some other variables should also be relevant, for example length of flight and speed of plane but they don't appear to be so in our regression.
+
+ Since this data was sampled only over the span of one year, to better justify the importance of some variables, a larger sample of data would have been necessary than the one obtained. Other things that were not considered are the types of plane that can have different cost for instance consumption or maintenance and repairs.
