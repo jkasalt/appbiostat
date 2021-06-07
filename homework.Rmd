@@ -1,25 +1,31 @@
+```{r, include = FALSE}
+authors <- c("Omid Karimi", "Evan Aguzzi", "Luca Bracone", "Blerton Rashiti")
+```
+
 ---
 title: "A regression analysis of airline operating costs"
-author: "Omid Karimi, Evan Aguzzi, Luca Bracone, Blerton Rashiti"
-date: "2021-04-22"
-output: pdf_document
+author: "`r authors`"
+date: "`r format(Sys.time(), '%B %Y')`"
 geometry: margin = 2.5cm
 fontsize: 12pt
 header-includes:
     - \usepackage{titling}
     - \usepackage{fancyhdr}
     - \pagestyle{fancy}
-    - \fancyhead[L]{\theauthor}
+    - \fancyhead[L]{`r authors`}
     - \fancyhead[R]{}
     - \usepackage{amsmath}
+output: pdf_document
 ---
 
-```{r, echo = FALSE}
+
+```{r, include = FALSE}
 set.seed(111222)
 library("MASS")
 library("knitr")
 library("papeR")
 library("leaps")
+library("equatiomatic")
 air <- read.delim("airline_costs.dat", header = FALSE, sep="")
 colnames(air) <- c("Airline", "LoF", "SoP", "DFT", "population",
                    "TOC", "RTpAM", "TMlf", "capacity", "totassets",
@@ -53,7 +59,12 @@ $$\mathbb{E}(y_i) = \prod_j \beta_j x^{-k_j}.$$
 
 Then, to make it into a linear model we take logs of all variables except for the ton-mile load factor, which is a ratio.
 
-We now fit this model with all variables.
+A linear model attempts to fit the response variable with respect to the explanatory variables in the following way:
+\[ \hat y_i = \beta_0 + \beta_1 x_1 + \dots \beta_k x_k. \]
+All the models are fit by choosing the coefficients $\beta_i$ which minimize the mean square error:
+\[ \frac{1}{n} \sum_{i = 1}^n (\hat y_i - y_i)^2. \]
+Where $\hat y_i$ are the expected fit values according to our model, and $y_i$ are the observed responses.
+We now fit this model with all the variables.
 
 ```{r, echo = FALSE}
 tmlf <- subset(air, select = TMlf)
@@ -72,7 +83,7 @@ res <- stdres(fit.AICforward)
 ```
 
 ```{r, echo = FALSE, results = "asis"}
-kable(prettify( summary(fit), digits = 3, scientific = TRUE ))
+kable(prettify( summary(fit), digits = 2, scientific = TRUE ))
 ```
 
 We find that the most relevant variables are the same as the ones found in the 1954 study with the addition of `LoF`.
@@ -81,8 +92,12 @@ We find that the most relevant variables are the same as the ones found in the 1
 
 We decide to build our model by using a step-forward method with AIC, which yields the following:
 
+```{r, echo = FALSE}
+extract_eq(fit.AICforward, use_coefs = TRUE)
+```
+
 ```{r, echo = FALSE, results = "asis"}
-kable(prettify(summary(fit.AICforward), digits = 3, scientific = TRUE), caption = "A summary of the final chosen model")
+kable(prettify(summary(fit.AICforward), digits = 3, scientific = TRUE), caption = "A summary of the final chosen model", digits = 2)
 ```
 
 We now proceed to assess the assumptions of our model.
@@ -148,4 +163,4 @@ The presence of adjusted assets as a significant variable comes off as a surpris
 
 In practice, some other variables should also be relevant, for example length of flight and speed of plane but they don't appear to be so in our regression.
 
- Since this data was sampled only over the span of one year, to better justify the importance of some variables, a larger sample of data would have been necessary than the one obtained. Other things that were not considered are the types of plane that can have different cost for instance consumption or maintenance and repairs.
+Since this data was sampled only over the span of one year, to better justify the importance of some variables, a larger sample of data would have been necessary than the one obtained. Other things that were not considered are the types of plane that can have different cost for instance consumption or maintenance and repairs.
