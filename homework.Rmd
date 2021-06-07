@@ -155,6 +155,9 @@ text(1:31, cook, labels = ifelse(cook > 0.1, rownames(air), NA), cex = 0.7, pos 
 ```
 
 # Conclusion
+In this report, we performed some preliminary explorations of the data. This laid the groundwork for the rest of the analysis by helping us decide on a relevant transformation of the data, and decide that a linear model would be best suited.
+Following that, we chose to build our final model using an AIC forward-stepping method.
+Finally we tested our model's assumptions with various plots and found that they were appropriate.
 
 As we can see, the four most influential parameters are capacity, ton-mile load factor, daily flight time and adjusted assets.
 The capacity, ton-mile load factor, and daily flight time are known to be significant variables in airline costs.
