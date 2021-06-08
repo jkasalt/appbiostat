@@ -1,5 +1,12 @@
 ```{r, include = FALSE}
+set.seed(111222)
+library("MASS")
+library("knitr")
+library("papeR")
+library("leaps")
+library("equatiomatic")
 authors <- c("Omid Karimi", "Evan Aguzzi", "Luca Bracone", "Blerton Rashiti")
+opts_chunk$set(echo = FALSE, fig.align = "center", fig.pos = "!h")
 ```
 
 ---
@@ -8,6 +15,8 @@ author: "`r authors`"
 date: "`r format(Sys.time(), '%B %Y')`"
 geometry: margin = 2.5cm
 fontsize: 12pt
+bibliography: references.bib
+nocite: "@*"
 header-includes:
     - \usepackage{titling}
     - \usepackage{fancyhdr}
@@ -15,17 +24,12 @@ header-includes:
     - \fancyhead[L]{`r authors`}
     - \fancyhead[R]{}
     - \usepackage{amsmath}
+    - \usepackage{subfig}
 output: pdf_document
 ---
 
 
 ```{r, include = FALSE}
-set.seed(111222)
-library("MASS")
-library("knitr")
-library("papeR")
-library("leaps")
-library("equatiomatic")
 air <- read.delim("airline_costs.dat", header = FALSE, sep="")
 colnames(air) <- c("Airline", "LoF", "SoP", "DFT", "population",
                    "TOC", "RTpAM", "TMlf", "capacity", "totassets",
@@ -41,6 +45,74 @@ In this report, we use regression analysis to get the variables that have the mo
 Our dataset contains the following variables: Airline name, length of flight `LoF` (in miles), speed of plane `SoP` (miles per hour), daily flight time per plane `DFT` (in hours), population served `population` (1000s), total operating cost `TOC` (in cents per revenue ton-mile), ton-mile load factor `TMlf` (proportion), available capacity `capacity` (Tons per mile), adjusted assets `adjassets` (\$100,000s).
 
 # Exploratory phase
+We summarize our variables here:
+
+```{r}
+row_names <- c(
+  "Length of Flight",
+  "Speeod of Plane",
+  "Daily Flight Time",
+  "Population served",
+  "Total Operationg Costs",
+  "Ton-Mile Load Factor",
+  "Capacity",
+  "Adjusted Assets"
+  )
+col_names <- c(
+    "Mean",
+    "Standard Deviation"
+)
+a <- matrix(c(
+mean(air$LoF),
+mean(air$SoP),
+mean(air$DFT),
+mean(air$population),
+mean(air$TOC),
+mean(air$TMlf),
+mean(air$capacity),
+mean(air$adjassets),
+sd(air$LoF),
+sd(air$SoP),
+sd(air$DFT),
+sd(air$population),
+sd(air$TOC),
+sd(air$TMlf),
+sd(air$capacity),
+sd(air$adjassets)
+), ncol = 2, dimnames = list(row_names, col_names))
+a <- format(a, digits = 2)
+kable(a)
+```
+
+We make histograms of all our variables:
+
+```{r plot-histograms, out.width = "35%", fig.ncol = 3, fig.subcap = ""}
+hist(air$LoF)
+hist(air$SoP)
+hist(air$DFT)
+hist(air$population)
+hist(air$TOC)
+hist(air$TMlf)
+hist(air$capacity)
+hist(air$adjassets)
+```
+ We investigate the correlation matrix:
+
+```{r}
+d <- data.frame(
+                air$LoF,
+                air$SoP,
+                air$DFT,
+                air$population,
+                air$TOC,
+                air$TMlf,
+                air$capacity,
+                air$adjassets
+            )
+b <- cor(d)
+b <- format(b, digits = 2)
+kable(b)
+```
 
 When plotting the explanatories against the response (Total Operating Costs) we find that almost every plot has the same $1/x$ shape.
 The following two plots are representative of the general shape each other plot has.
@@ -51,6 +123,8 @@ par(mfrow = c(1,2), pty = "square", pch = 18)
 plot(TOC ~ LoF, data = air, ylab = "Total Operating Costs", xlab = "Length of Flight")
 plot(TOC ~ capacity, data = air, ylab = "Total Operating Costs", xlab ="Capacity")
 ```
+
+We compute the correlation matrix of our variables
 
 Note that in all of these plots the airline that finds itself alone at the top left of the graph is Wiggins. When we fit the model as is with the same explanatories used in the 1954 study, we find that none of the explanatories are particularly relevant and that Wiggins is an outlier as well as an influential point. Therefore, it may be interesting to exclude Wiggins and try to fit the same model. However, this model is still only moderately satisfying because although it has a good fit for some variables, other airlines become leverage points and the parabola-shaped scale-location plot causes us to doubt the validity of the homoskedasticity assumption.
 
@@ -108,7 +182,7 @@ We now proceed to assess the assumptions of our model.
 Consider the four following plots of the standardized residuals against each of the explanatories.
 In those, it would be desirable to find no particular structure. That is the case here.
 Otherwise it would have suggested that we would have forgotten to add an explanatory, or a transformation of an explanatory.
-For instance, if one of the following plots was shaped like an $x^3$ curve we would have wanted to add to our model the cube of some explanatory variable.
+For instance, if one of the following plots was shaped like an $x^3$ curve we would have wanted to add to our model the cube of some explanatory variable. Also, we see that the residuals are evenly distributed around zero each time, so we verify that the residuals have mean zero.
 
 ```{r, echo = FALSE, fig.align = "center", fig.height = 7}
 par(mfrow = c(2,2), pch = 18, pty = "square")
@@ -154,6 +228,7 @@ cook <- cooks.distance(fit.AICforward)
 text(1:31, cook, labels = ifelse(cook > 0.1, rownames(air), NA), cex = 0.7, pos = c(2,2,3,2,2))
 ```
 
+
 # Conclusion
 In this report, we performed some preliminary explorations of the data. This laid the groundwork for the rest of the analysis by helping us decide on a relevant transformation of the data, and decide that a linear model would be best suited.
 Following that, we chose to build our final model using an AIC forward-stepping method.
@@ -167,3 +242,8 @@ The presence of adjusted assets as a significant variable comes off as a surpris
 In practice, some other variables should also be relevant, for example length of flight and speed of plane but they don't appear to be so in our regression.
 
 Since this data was sampled only over the span of one year, to better justify the importance of some variables, a larger sample of data would have been necessary than the one obtained. Other things that were not considered are the types of plane that can have different cost for instance consumption or maintenance and repairs.
+
+# References
+```{r, include = FALSE}
+write_bib(.packages(), file = "references.bib")
+```
