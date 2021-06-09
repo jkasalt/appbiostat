@@ -1,17 +1,10 @@
-```{r, include = FALSE}
-set.seed(111222)
-library("MASS")
-library("knitr")
-library("papeR")
-library("leaps")
-library("equatiomatic")
-authors <- c("Omid Karimi", "Evan Aguzzi", "Luca Bracone", "Blerton Rashiti")
-opts_chunk$set(echo = FALSE, fig.align = "center", fig.pos = "!h")
-```
-
 ---
 title: "A regression analysis of airline operating costs"
-author: "`r authors`"
+author:
+    - "Omid Karimi"
+    - "Evan Aguzzi"
+    - "Luca Bracone"
+    - "Blerton Rashiti"
 date: "`r format(Sys.time(), '%B %Y')`"
 geometry: margin = 2.5cm
 fontsize: 12pt
@@ -21,12 +14,24 @@ header-includes:
     - \usepackage{titling}
     - \usepackage{fancyhdr}
     - \pagestyle{fancy}
-    - \fancyhead[L]{`r authors`}
+    - \fancyhead[L]{Omid Karimi, Evan Aguzzi, Luca Bracone, Blerton Rashiti}
     - \fancyhead[R]{}
     - \usepackage{amsmath}
     - \usepackage{subfig}
-output: pdf_document
+output:
+  bookdown::pdf_document2:
+    toc: false
 ---
+
+```{r, include = FALSE}
+set.seed(111222)
+library("MASS")
+library("knitr")
+library("papeR")
+library("equatiomatic")
+authors <- c("Omid Karimi", "Evan Aguzzi", "Luca Bracone", "Blerton Rashiti")
+opts_chunk$set(echo = FALSE, fig.align = "center")
+```
 
 
 ```{r, include = FALSE}
@@ -39,15 +44,14 @@ air <- air[,-1]
 ```
 
 # Introduction
-
 The costs of air transport include several parameters but they are not of the same importance.
 In this report, we use regression analysis to get the variables that have the most influence on the airline costs.
 Our dataset contains the following variables: Airline name, length of flight `LoF` (in miles), speed of plane `SoP` (miles per hour), daily flight time per plane `DFT` (in hours), population served `population` (1000s), total operating cost `TOC` (in cents per revenue ton-mile), ton-mile load factor `TMlf` (proportion), available capacity `capacity` (Tons per mile), adjusted assets `adjassets` (\$100,000s).
 
 # Exploratory phase
-We summarize our variables here:
+On table \@ref(tab:univariate-numeric), we briefly summarize our variables.
 
-```{r}
+```{r univariate-numeric}
 row_names <- c(
   "Length of Flight",
   "Speeod of Plane",
@@ -81,24 +85,21 @@ sd(air$capacity),
 sd(air$adjassets)
 ), ncol = 2, dimnames = list(row_names, col_names))
 a <- format(a, digits = 2)
-kable(a)
+kable(a, "pipe", caption = "Some statistics about each variable", digits = 2)
 ```
-
-We make histograms of all our variables:
-
-```{r plot-histograms, out.width = "35%", fig.ncol = 3, fig.subcap = ""}
-hist(air$LoF)
-hist(air$SoP)
-hist(air$DFT)
-hist(air$population)
-hist(air$TOC)
-hist(air$TMlf)
-hist(air$capacity)
-hist(air$adjassets)
+On Figure \@ref(fig:plot-histograms), we make histograms of all our variables.
+```{r plot-histograms, fig.cap = "histograms of each variable", fig.ncol = 3, fig.subcap = "", out.width = "33%"}
+hist(air$LoF, main="Histogram of Length of flight", xlab="Length of flight")
+hist(air$SoP, main="Histogram of Speed of Plane", xlab="Speed of Plane")
+hist(air$DFT, main="Histogram of Daily Flight Time", xlab="Daily Flight Time")
+hist(air$population, main="Histogram of Population served", xlab="Population served")
+hist(air$TOC, main="Histogram of Total Operationg Costs", xlab="Total Operationg Costs")
+hist(air$TMlf, main="Histogram of Ton-Mile Load Factor", xlab="Ton-Mile Load Factor")
+hist(air$capacity, main="Histogram of Capacity", xlab="Capacity")
+hist(air$adjassets, main="Histogram of Adjusted Assets", xlab="Adjusted Assets")
 ```
- We investigate the correlation matrix:
-
-```{r}
+We investigate the covariance matrix on Table \@ref(tab:covariance).
+```{r covariance}
 d <- data.frame(
                 air$LoF,
                 air$SoP,
@@ -109,22 +110,20 @@ d <- data.frame(
                 air$capacity,
                 air$adjassets
             )
+var_names <- c("LoF", "SoP", "DFT", "Population", "TOC", "TMlf", "Capacity", "Adj.\\ assets")
 b <- cor(d)
-b <- format(b, digits = 2)
-kable(b)
+b <- round(b, digits = 2)
+kable(b, format = "simple", caption = "covariance matrix", col.names = var_names, digits = 2)
 ```
 
 When plotting the explanatories against the response (Total Operating Costs) we find that almost every plot has the same $1/x$ shape.
-The following two plots are representative of the general shape each other plot has.
+The  two plots on Figure \@ref(fig:bivariate-gra) are representative of the general shape each other plot has.
 
-```{r, echo = FALSE}
-
-par(mfrow = c(1,2), pty = "square", pch = 18)
+```{r bivariate-gra, echo = FALSE, fig.cap = "Some plots of response vs.\ explanatory", fig.ncol = 2, fig.subcap = "", out.width = "50%", out.height = "25%"}
+par(pty = "square", pch = 18)
 plot(TOC ~ LoF, data = air, ylab = "Total Operating Costs", xlab = "Length of Flight")
 plot(TOC ~ capacity, data = air, ylab = "Total Operating Costs", xlab ="Capacity")
 ```
-
-We compute the correlation matrix of our variables
 
 Note that in all of these plots the airline that finds itself alone at the top left of the graph is Wiggins. When we fit the model as is with the same explanatories used in the 1954 study, we find that none of the explanatories are particularly relevant and that Wiggins is an outlier as well as an influential point. Therefore, it may be interesting to exclude Wiggins and try to fit the same model. However, this model is still only moderately satisfying because although it has a good fit for some variables, other airlines become leverage points and the parabola-shaped scale-location plot causes us to doubt the validity of the homoskedasticity assumption.
 
@@ -138,7 +137,9 @@ A linear model attempts to fit the response variable with respect to the explana
 All the models are fit by choosing the coefficients $\beta_i$ which minimize the mean square error:
 \[ \frac{1}{n} \sum_{i = 1}^n (\hat y_i - y_i)^2. \]
 Where $\hat y_i$ are the expected fit values according to our model, and $y_i$ are the observed responses.
+This is also known as “least squares”.
 We now fit this model with all the variables.
+On Table \@ref(tab:full-model) we see the result of this process.
 
 ```{r, echo = FALSE}
 tmlf <- subset(air, select = TMlf)
@@ -156,22 +157,32 @@ fit.rev2 <- lm(RTpAM ~ . - TOC - totassets, data = air)
 res <- stdres(fit.AICforward)
 ```
 
-```{r, echo = FALSE, results = "asis"}
-kable(prettify( summary(fit), digits = 2, scientific = TRUE ))
+```{r full-model}
+kable(prettify(summary(fit), digits = 2, scientific = TRUE), "pipe", digits = 2, caption = "The model fit with all variables")
 ```
 
 We find that the most relevant variables are the same as the ones found in the 1954 study with the addition of `LoF`.
 
 # Final model and assessment
 
+We remind the reader that for a linear model to be approporiate, the following have to take place:
+
+1. The residuals $\hat y_i - y_i$ should have mean zero.
+2. The variance of the residuals should be constant.
+3. The residuals should be uncorrelated.
+4. The residuals should be normally distributed.
+
+These assumptions will be verified in this section after we declare our final model.
 We decide to build our model by using a step-forward method with AIC, which yields the following:
 
 ```{r, echo = FALSE}
 extract_eq(fit.AICforward, use_coefs = TRUE)
 ```
 
-```{r, echo = FALSE, results = "asis"}
-kable(prettify(summary(fit.AICforward), digits = 3, scientific = TRUE), caption = "A summary of the final chosen model", digits = 2)
+On Table \@ref(tab:final-model) we see a summary of the final model we chose.
+
+```{r final-model}
+kable(prettify(summary(fit.AICforward), digits = 3, scientific = TRUE), "pipe", caption = "A summary of the final chosen model", digits = 2)
 ```
 
 We now proceed to assess the assumptions of our model.
@@ -179,13 +190,13 @@ We now proceed to assess the assumptions of our model.
 ## Linearity
 
 
-Consider the four following plots of the standardized residuals against each of the explanatories.
+Consider the four plots on Figure \@ref(fig:plot-linearity) of the standardized residuals against each of the explanatories.
 In those, it would be desirable to find no particular structure. That is the case here.
 Otherwise it would have suggested that we would have forgotten to add an explanatory, or a transformation of an explanatory.
 For instance, if one of the following plots was shaped like an $x^3$ curve we would have wanted to add to our model the cube of some explanatory variable. Also, we see that the residuals are evenly distributed around zero each time, so we verify that the residuals have mean zero.
 
-```{r, echo = FALSE, fig.align = "center", fig.height = 7}
-par(mfrow = c(2,2), pch = 18, pty = "square")
+```{r plot-linearity, fig.cap = "assessment of linearity: residuals against explanatories", fig.subcap ="", fig.ncol = 4, out.width = "25%"}
+par( pch = 18, pty = "square")
 plot(res ~ air$TMlf, ylab = "Standardized residuals", xlab = "Ton-mile load factor")
 plot(res ~ air$capacity, ylab = "Standardized residuals", xlab = "Capacity")
 plot(res ~ air$DFT, ylab = "Standardized residuals", xlab = "Daily flight time")
@@ -194,21 +205,21 @@ plot(res ~ air$adjassets, ylab = "Standardized residuals", xlab = "Adjusted asse
 
 ## Normality
 
-Consider the following image in which we plot the standardized residuals $r_i = e_i/ s \sqrt{1-h_{ii}}$ against theoretical normal distribution, we would like to see them follow straight line. This is the case here and shows that the normality assumption is verified.
+Consider Figure \@ref(fig:plot-normality) in which we plot the standardized residuals $r_i = e_i/ s \sqrt{1-h_{ii}}$ against theoretical normal distribution, we would like to see them follow straight line. This is the case here and shows that the normality assumption is verified.
 
-```{r, echo = FALSE, fig.align = "center", out.height = "40%"}
+```{r plot-normality, fig.cap = "QQ plot", out.height = "30%"}
 par( pch = 18, pty = "square")
 plot(fit.AICforward, which = 2)
 ```
 
 ## Homoskedasticity
 
-Consider the following plot of the standardized residuals against the fitted values.
+Consider the plot on Figure \@ref(fig:plot-homoskedasticity) of the standardized residuals against the fitted values.
 We would like once again to see no particular structure formed by the points.
 This is the case here so the homoskedasticity assumption is verified.
 Also, we see that Northwest and Central lie farther than two standard deviations from the mean.
 This may prompts furhter study as to what causes their opearating costs to be higher than expected.
-```{r, echo = FALSE, fig.align = "center", out.height = "40%"}
+```{r plot-homoskedasticity, fig.cap = "Dispersion of residuals vs.\ fitted values", out.height = "30%"}
 par(pch = 18, pty = "square")
 plot(fit.AICforward$fitted.values, res, ylab = "Standardized residuals", xlab = "Fitted values")
 text(fit.AICforward$fitted.values, res, labels = ifelse(res > 2.0, rownames(air), NA), cex = 0.7, pos = 4)
@@ -242,6 +253,9 @@ The presence of adjusted assets as a significant variable comes off as a surpris
 In practice, some other variables should also be relevant, for example length of flight and speed of plane but they don't appear to be so in our regression.
 
 Since this data was sampled only over the span of one year, to better justify the importance of some variables, a larger sample of data would have been necessary than the one obtained. Other things that were not considered are the types of plane that can have different cost for instance consumption or maintenance and repairs.
+
+<!--only necessary if reference title is not on same page as content-->
+\newpage
 
 # References
 ```{r, include = FALSE}
