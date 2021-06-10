@@ -167,10 +167,10 @@ We find that the most relevant variables are the same as the ones found in the 1
 
 We remind the reader that for a linear model to be approporiate, the following have to take place:
 
-1. The residuals $\hat y_i - y_i$ should have mean zero.
-2. The variance of the residuals should be constant.
-3. The residuals should be uncorrelated.
-4. The residuals should be normally distributed.
+1. The errors should have mean zero.
+2. The variance of the errors should be constant.
+3. The errors should be uncorrelated.
+4. The errors should be normally distributed.
 
 These assumptions will be verified in this section after we declare our final model.
 We decide to build our model by using a step-forward method with AIC, which yields the following:
@@ -228,10 +228,10 @@ abline(h = c(-2,2), lty = 2, col = "red")
 
 ## Presence of leverage points
 
-Consider the following plot of the Cook distance of each airline.
+Consider Figure \@ref(fig:cook) of the Cook distance of each airline.
 Following a common rule of thumb, we drew a line at $h = 8/(n - 2p)$, (where $n = 31$ is the number of observed airlines and $p = 4$ is the number of parameters in the model), to indicate which airlines have particularly strong influence on the overall fit of the model.
 We see that Central and Eastern are leverage points. This means that they stand out by having unusual values among the explanatory variables. As such they tend to skew the regression. We see that Central is both an outlier and a leverage point so it may be worthwhile to fit the same model again without that variable to see if there are significant changes.
-```{r, echo = FALSE, fig.align = "center", out.height = "40%"}
+```{r cook, fig.cap = "Cook's distance plotted for each observation"}
 par(pch = 18)
 plot(cooks.distance(fit.AICforward), xlab = "", xaxt = "n", ylab = "Cook's distance")
 abline(h = 8/(31 - 2*4), lty = 2, col = "red")
